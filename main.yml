@@ -1,3 +1,4 @@
+---
 # This file is about all the tasks that are installed and executed on hosts whic has the role web server
 
 - name: This installs latest package of apache

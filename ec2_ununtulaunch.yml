@@ -1,0 +1,156 @@
+
+# Launching an ec2 instance on aws using ansible as configuration management tool
+- name: Creating a ec2 instance
+  hosts: localhost
+  gather_facts: False
+# Variables for creating ec2 instance
+  vars:
+    key_name: myregion_keypair
+    instance_type: t2.micro
+# This security group was created that is needed for the instance
+   security_group: my_securitygroup
+# This is the image ID for ubuntu 14.04 
+     image: ami-40d28157
+     region: us-east-1c
+     
+  tasks:
+    - name: Launch ec2 instance
+      ec2:
+         key_name: "{{ myregion_keypair }}"
+         group: "{{ my_securitygroup }}"
+         instance_type: "{{ t2.micro}}"
+         image: "{{ ami-40d28157 }}"
+         wait: true
+         region: "{{ us-east-1c }}"
+         vpc_subnet_id: subnet-8d2325d5
+         assign_public_ip: yes
+      
+      register: ec2
+      
+   - name: Add new instance to host group
+      add_host: hostname={{ item.public_ip }} groupname=launched
+      with_items: '{{ec2.instances}}'
+      
+   - name: Wait for SSH to come up
+      wait_for: host={{ item.public_dns_name }} port=22 delay=60 timeout=320 state=started
+      with_items: '{{ec2.instances}}'
+      
+   - name: Configure instance
+      hosts: launched
+      become: True
+      gather_facts: True
+
+   #maintaining an ec2_VPC security group
+  - name: apache instance security group
+    ec2_group:
+             name: my_securitygroup
+             description: security group for the given project
+             vpc_id: vpc-d6a3ceb1
+             region: eu-east-1c
+             aws_secret_key: SECRET
+             aws_access_key: ACCESS
+             rules_egress:
+                          - proto: tcp
+                            from_port: 22
+                            to_port: 22
+                            group_id: sg-34be224e
+                          - proto: http
+                            from_port: 80
+                            to_port: 80
+                            cidr_ip: 0.0.0.0/0
+                           - proto: https
+                            from_port: 443
+                            to_port: 443
+                            cidr_ip: 0.0.0.0/0
+     #Configuring ELB
+           - local_action:
+                         module: ec2_elb_lb
+                         name: "ec2_vpc"
+                         state: present
+                         instance_ids: i-0d4d3f284d03f8016
+                         subnets:
+                               - subnet-8d2325d5
+                         listeners:
+                              - protocol: https
+                                load_balancer_port: 443
+                                instance_port: 80
+                            
+     # assigning a launch config to an Autoscaling Group
+
+     - name: create launch config
+       ec2_lc:
+             name: my_lc
+             image_id: ami-40d28157
+             key_name: myregion_keypair 
+             region: us-east-1c
+             security_groups: sg-34be224e
+             instance_type: t2.micro
+             assign_public_ip: yes
+
+      - ec2_asg:
+               name: myasg
+               launch_config_name: my_lc
+               health_check_period: 30
+               health_check_type: ELB
+               replace_all_instances: yes
+               min_size: 2
+               max_size: 2
+               desired_capacity: 2
+               region: us-east-1c
+               
+       # Setting up autoscaling policy for scaling up and down
+       - ec2_scaling_policy:
+               state: present
+               region: us-east-1c
+               name: "scaleup-policy"
+               adjustment_type: "ChangeInCapacity"
+               asg_name: "myasg"
+               scaling_adjustment: +1
+               cooldown: 300
+               
+       - ec2_scaling_policy:
+               state: present
+               region: us-east-1c
+               name: "scaledown-policy"
+               adjustment_type: "ChangeInCapacity"
+               asg_name: "myasg"
+               scaling_adjustment: -1
+               cooldown: 300
+      
+    # Cloudwatch metric scale up & downalarm which automatically sends a notification when the metric reaches a threshold that is specified 
+  - name: create alarm
+    ec2_metric_alarm :
+                    state: present
+                    region: us-east-1c
+                    name: "cpu-high"
+                    metric: "CPUUtilization"
+                    namespace: "AWS/EC2"
+                    statistic: Average
+                    comparison: ">="
+                    threshold: 70.0
+                    period: 300
+                    evaluation_periods: 3
+                    description: "This will alarm when a instance cpu usage average is higher than 70% for 15 minutes "
+                    dimensions: {'InstanceId':'ami-40d28157'}
+                    alarm_actions: ["scaleup-policy"]
+
+    - ec2_metric_alarm:
+                    state: present
+                    region: us-east-1c
+                    name: "cpu-low"
+                    metric: "CPUUtilization"
+                    namespace: "AWS/EC2"
+                    statistic: Average
+                    comparison: "<="
+                    threshold: 10.0
+                    period: 300
+                    evaluation_periods: 3
+                    description: "This will alarm when a instance cpu usage average is lower than 10% for 15 minutes "
+                    dimensions: {'InstanceId':'ami-40d28157'}
+                    alarm_actions: ["scaledown-policy"]
+
+    
+     # Starting apache service
+    - name: make sure apache is running
+      service: name=httpd state=started
+

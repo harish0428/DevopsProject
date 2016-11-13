@@ -9,6 +9,7 @@
     instance_type: t2.micro
 # This security group was created that is needed for the instance
    security_group: my_securitygroup
+
 # This is the image ID for ubuntu 14.04 
      image: ami-40d28157
      region: us-east-1c

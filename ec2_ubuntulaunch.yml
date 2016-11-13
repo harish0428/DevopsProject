@@ -77,7 +77,6 @@
                                 instance_port: 80
                             
      # assigning a launch config to an Autoscaling Group
-
      - name: create launch config
        ec2_lc:
              name: my_lc

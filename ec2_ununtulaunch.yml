@@ -1,4 +1,4 @@
-
+---
 # Launching an ec2 instance on aws using ansible as configuration management tool
 - name: Creating a ec2 instance
   hosts: localhost

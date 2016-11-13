@@ -1,5 +1,5 @@
 ---
-# This file is about all the tasks that are installed and executed on hosts which has the role web server
+# This file is about all the tasks that are installed and executed on hosts which has role web server
 
 - name: This installs latest package of apache
       yum: pkg=httpd state=latest

@@ -149,8 +149,5 @@
                     dimensions: {'InstanceId':'ami-40d28157'}
                     alarm_actions: ["scaledown-policy"]
 
-    
-     # Starting apache service
-    - name: make sure apache is running
-      service: name=httpd state=started
+
 

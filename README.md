@@ -8,5 +8,5 @@ The steps involded are:
   5. main.yml is the main file where these roles are defined.It includes tasks, handelers and templates that are performed on webserver
   6. Template file defines the source of the html file which here indicates the helloworld.html file
  
- Finally, when the coomand 'ansible-playbook site.yml -i hosts' gets executed it finishes all the tasks that are mentione above and serves a static web page i.e., hello world message on the https port.
+ Finally, when the command 'ansible-playbook site.yml -i hosts' gets executed it finishes all the tasks that are mentione above and serves a static web page i.e., hello world message on the https port.
   

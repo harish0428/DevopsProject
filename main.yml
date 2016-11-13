@@ -1,0 +1,13 @@
+# This file is about all the tasks that are installed and executed on hosts whic has the role web server
+
+- name: This installs latest package of apache
+      yum: pkg=httpd state=latest
+- name: check the running status of pache
+      service: name=httpd state=running enabled=yes
+- name: copy files to document root
+      template: src=helloworld.html dest=/var/www/html/index.html
+      notify: restart apache
+ # This is a handler where its gets executed after the main task when the tasks state has changed on hosts
+ # It restarts the apache service
+- name: restart apache
+      service: name=httpd state=restarted
